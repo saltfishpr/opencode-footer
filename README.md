@@ -15,7 +15,7 @@ OpenCode Desktop 插件，在窗口底部左侧显示当前会话的连接状态
 | pwd | 会话工作区根目录的绝对路径，位于 `$HOME` 下时折叠为 `~` | `MountedSession.directory` |
 | 分支 | 当前 Git 分支，前面带分支图标 | server 同步的 VCS 数据 |
 
-- 无会话（首页）时只显示圆点和 server name。
+- 首页和新建会话页不显示：这些页面在 composer 旁已经展示项目、路径和分支。
 - 非 Git 仓库或分支尚未加载时隐藏分支段。
 - 路径过长时显示省略号。
 

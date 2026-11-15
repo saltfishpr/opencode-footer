@@ -78,49 +78,53 @@ export default Plugin.define({
       { equals: (previous, next) => previous.data === next.data && previous.directory === next.directory },
     )
 
-    const server = () => ctx.sessions.current()?.server ?? ctx.servers.get("sidecar")
+    const session = () => ctx.sessions.current()
+    const server = () => session()?.server
     const directory = () => {
-      const session = ctx.sessions.current()
-      return session ? abbreviate(session.directory, home()) : undefined
+      const current = session()
+      return current ? abbreviate(current.directory, home()) : undefined
     }
     const branch = () => {
-      const session = ctx.sessions.current()
-      return session
-        ? session.server.data.location.vcs.info({ directory: session.directory })?.branch.current
+      const current = session()
+      return current
+        ? current.server.data.location.vcs.info({ directory: current.directory })?.branch.current
         : undefined
     }
 
     ctx.add(Style, STYLE)
     ctx.add(Slot, {
       at: "window.bottom",
+      // Home and a new session already show the project, branch, and directory beside the composer.
       render: () => (
-        <div class="opencode-footer">
-          <span
-            class="opencode-footer__dot"
-            data-connected={server()?.connected ? "true" : "false"}
-            aria-label={ctx.t(server()?.connected ? "connected" : "disconnected")}
-          />
-          <span class="opencode-footer__text opencode-footer__name">{server()?.name ?? "opencode"}</span>
-          <Show when={directory()}>
-            {(path) => (
-              <>
-                <span class="opencode-footer__separator">·</span>
-                <span class="opencode-footer__text opencode-footer__path">{path()}</span>
-              </>
-            )}
-          </Show>
-          <Show when={branch()}>
-            {(name) => (
-              <>
-                <span class="opencode-footer__separator">·</span>
-                <span class="opencode-footer__text opencode-footer__branch">
-                  <ctx.ui.Icon name="branch" size="small" />
-                  {name()}
-                </span>
-              </>
-            )}
-          </Show>
-        </div>
+        <Show when={session()}>
+          <div class="opencode-footer">
+            <span
+              class="opencode-footer__dot"
+              data-connected={server()?.connected ? "true" : "false"}
+              aria-label={ctx.t(server()?.connected ? "connected" : "disconnected")}
+            />
+            <span class="opencode-footer__text opencode-footer__name">{server()?.name ?? "opencode"}</span>
+            <Show when={directory()}>
+              {(path) => (
+                <>
+                  <span class="opencode-footer__separator">·</span>
+                  <span class="opencode-footer__text opencode-footer__path">{path()}</span>
+                </>
+              )}
+            </Show>
+            <Show when={branch()}>
+              {(name) => (
+                <>
+                  <span class="opencode-footer__separator">·</span>
+                  <span class="opencode-footer__text opencode-footer__branch">
+                    <ctx.ui.Icon name="branch" size="small" />
+                    {name()}
+                  </span>
+                </>
+              )}
+            </Show>
+          </div>
+        </Show>
       ),
     })
   },
