@@ -1,7 +1,14 @@
-import { createKeyed, Plugin, Slot, Style } from "@opencode/plugin/gui"
+import { createKeyed, Plugin, SettingsPage, Slot, Store, Style } from "@opencode/plugin/gui"
+import { Schema } from "effect"
 import { createSignal, Show } from "solid-js"
 import { Home } from "./contract"
 import { main } from "./main"
+
+const Display = Schema.Struct({
+  server: Schema.Boolean,
+  path: Schema.Boolean,
+  branch: Schema.Boolean,
+})
 
 const STYLE = `
   .opencode-footer {
@@ -51,6 +58,25 @@ const STYLE = `
     color: var(--v2-text-text-faint);
     opacity: 0.6;
   }
+  .opencode-footer-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .opencode-footer-preview__surface {
+    padding: 8px 12px;
+    border: 1px solid color-mix(in oklab, currentColor 12%, transparent);
+    border-radius: 8px;
+  }
+  .opencode-footer-preview__surface .opencode-footer {
+    padding: 0;
+  }
+  .opencode-footer-preview__empty {
+    font-size: 11px;
+    line-height: 16px;
+    color: var(--v2-text-text-faint);
+  }
 `
 
 function abbreviate(path: string, home: string) {
@@ -58,12 +84,42 @@ function abbreviate(path: string, home: string) {
 }
 
 export default Plugin.define({
+  stores: {
+    display: Store.global(Display, { server: true, path: true, branch: true }),
+  },
   i18n: {
-    en: { connected: "Connected", disconnected: "Disconnected" },
-    zh: { connected: "已连接", disconnected: "未连接" },
+    en: {
+      connected: "Connected",
+      disconnected: "Disconnected",
+      "settings.title": "Footer",
+      "settings.description": "Choose what the window footer shows beside the composer.",
+      "settings.section": "Display",
+      "settings.server": "Server",
+      "settings.server.description": "The connection status dot and the server name.",
+      "settings.path": "Workspace path",
+      "settings.path.description": "The session's workspace directory, folded to ~ under your home directory.",
+      "settings.branch": "Git branch",
+      "settings.branch.description": "The current branch of the workspace repository.",
+      "settings.preview.empty": "The footer is hidden while every section is off.",
+    },
+    zh: {
+      connected: "已连接",
+      disconnected: "未连接",
+      "settings.title": "页脚",
+      "settings.description": "选择窗口底部在 composer 旁显示的内容。",
+      "settings.section": "显示",
+      "settings.server": "服务器",
+      "settings.server.description": "连接状态圆点和 server 名称。",
+      "settings.path": "工作区路径",
+      "settings.path.description": "会话的工作区目录，位于用户目录下时折叠为 ~。",
+      "settings.branch": "Git 分支",
+      "settings.branch.description": "工作区仓库的当前分支。",
+      "settings.preview.empty": "所有段落关闭后，窗口底部不显示任何内容。",
+    },
   },
   setup(ctx) {
     const [home, setHome] = createSignal("")
+    const display = ctx.stores.display
 
     void ctx.main(Home).read().then(setHome, () => {})
 
@@ -92,30 +148,75 @@ export default Plugin.define({
     }
 
     ctx.add(Style, STYLE)
+    ctx.add(SettingsPage, {
+      id: "opencode-footer",
+      icon: "layout-bottom",
+      get title() {
+        return ctx.t("settings.title")
+      },
+      get entries() {
+        return [
+          { id: "server", title: ctx.t("settings.server"), description: ctx.t("settings.server.description") },
+          { id: "path", title: ctx.t("settings.path"), description: ctx.t("settings.path.description") },
+          { id: "branch", title: ctx.t("settings.branch"), description: ctx.t("settings.branch.description") },
+        ]
+      },
+      render: () => <FooterSettings />,
+    })
     ctx.add(Slot, {
       at: "window.bottom",
       // Home and a new session already show the project, branch, and directory beside the composer.
       render: () => (
         <Show when={session()}>
-          <div class="opencode-footer">
+          <Show when={display.value.server || display.value.path || display.value.branch}>
+            <div class="opencode-footer">
+              <FooterContent
+                connected={server()?.connected ?? false}
+                name={server()?.name ?? "opencode"}
+                path={directory()}
+                branch={branch()}
+              />
+            </div>
+          </Show>
+        </Show>
+      ),
+    })
+
+    function FooterContent(props: {
+      connected: boolean
+      name: string
+      path: string | undefined
+      branch: string | undefined
+    }) {
+      return (
+        <>
+          <Show when={display.value.server}>
             <span
               class="opencode-footer__dot"
-              data-connected={server()?.connected ? "true" : "false"}
-              aria-label={ctx.t(server()?.connected ? "connected" : "disconnected")}
+              data-connected={props.connected ? "true" : "false"}
+              aria-label={ctx.t(props.connected ? "connected" : "disconnected")}
             />
-            <span class="opencode-footer__text opencode-footer__name">{server()?.name ?? "opencode"}</span>
-            <Show when={directory()}>
+            <span class="opencode-footer__text opencode-footer__name">{props.name}</span>
+          </Show>
+          <Show when={display.value.path}>
+            <Show when={props.path}>
               {(path) => (
                 <>
-                  <span class="opencode-footer__separator">·</span>
+                  <Show when={display.value.server}>
+                    <span class="opencode-footer__separator">·</span>
+                  </Show>
                   <span class="opencode-footer__text opencode-footer__path">{path()}</span>
                 </>
               )}
             </Show>
-            <Show when={branch()}>
+          </Show>
+          <Show when={display.value.branch}>
+            <Show when={props.branch}>
               {(name) => (
                 <>
-                  <span class="opencode-footer__separator">·</span>
+                  <Show when={display.value.server || display.value.path}>
+                    <span class="opencode-footer__separator">·</span>
+                  </Show>
                   <span class="opencode-footer__text opencode-footer__branch">
                     <ctx.ui.Icon name="branch" size="small" />
                     {name()}
@@ -123,10 +224,83 @@ export default Plugin.define({
                 </>
               )}
             </Show>
+          </Show>
+        </>
+      )
+    }
+
+    function FooterPreview() {
+      const empty = () => !display.value.server && !display.value.path && !display.value.branch
+
+      return (
+        <div class="opencode-footer-preview">
+          <div class="opencode-footer-preview__surface">
+            <Show
+              when={!empty()}
+              fallback={<span class="opencode-footer-preview__empty">{ctx.t("settings.preview.empty")}</span>}
+            >
+              <div class="opencode-footer">
+                <FooterContent connected name="Local" path="~/repos/my-app" branch="main" />
+              </div>
+            </Show>
           </div>
-        </Show>
-      ),
-    })
+        </div>
+      )
+    }
+
+    function FooterSettings() {
+      const ui = ctx.ui
+      return (
+        <ui.SettingsLayout title={ctx.t("settings.title")} description={ctx.t("settings.description")}>
+          <ui.SettingsSection title={ctx.t("settings.section")} footer={<FooterPreview />}>
+            <ui.SettingsRow
+              id="server"
+              title={ctx.t("settings.server")}
+              description={ctx.t("settings.server.description")}
+            >
+              <ui.Switch
+                label={ctx.t("settings.server")}
+                hideLabel
+                checked={display.value.server}
+                onChange={(checked) =>
+                  display.update((draft) => {
+                    draft.server = checked
+                  })
+                }
+              />
+            </ui.SettingsRow>
+            <ui.SettingsRow id="path" title={ctx.t("settings.path")} description={ctx.t("settings.path.description")}>
+              <ui.Switch
+                label={ctx.t("settings.path")}
+                hideLabel
+                checked={display.value.path}
+                onChange={(checked) =>
+                  display.update((draft) => {
+                    draft.path = checked
+                  })
+                }
+              />
+            </ui.SettingsRow>
+            <ui.SettingsRow
+              id="branch"
+              title={ctx.t("settings.branch")}
+              description={ctx.t("settings.branch.description")}
+            >
+              <ui.Switch
+                label={ctx.t("settings.branch")}
+                hideLabel
+                checked={display.value.branch}
+                onChange={(checked) =>
+                  display.update((draft) => {
+                    draft.branch = checked
+                  })
+                }
+              />
+            </ui.SettingsRow>
+          </ui.SettingsSection>
+        </ui.SettingsLayout>
+      )
+    }
   },
   main,
 })
