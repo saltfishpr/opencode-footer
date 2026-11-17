@@ -8,7 +8,12 @@ const Display = Schema.Struct({
   server: Schema.Boolean,
   path: Schema.Boolean,
   branch: Schema.Boolean,
+  fontSize: Schema.Number,
+  height: Schema.Number,
 })
+
+const FONT_SIZES = [10, 11, 12, 13]
+const HEIGHTS = [24, 28, 32, 36]
 
 const STYLE = `
   .opencode-footer {
@@ -16,9 +21,10 @@ const STYLE = `
     align-items: center;
     gap: 8px;
     min-width: 0;
+    box-sizing: border-box;
     /*
-     * The composer dock above ends with a 12px inset, but the window edge reads as extra space below the
-     * text, so a slightly smaller bottom inset keeps the text visually centered.
+     * The composer dock above ends with a 12px inset against the window edge. Keeping the bottom inset
+     * 8px larger than the top gap makes the text read as visually centered.
      */
     padding: 0 12px 8px;
     font-size: 11px;
@@ -92,7 +98,7 @@ function abbreviate(path: string, home: string) {
 
 export default Plugin.define({
   stores: {
-    display: Store.global(Display, { server: true, path: true, branch: true }),
+    display: Store.global(Display, { server: true, path: true, branch: true, fontSize: 11, height: 24 }),
   },
   i18n: {
     en: {
@@ -109,6 +115,11 @@ export default Plugin.define({
       "settings.branch.description": "The current branch of the workspace repository.",
       "settings.preview": "Preview",
       "settings.preview.empty": "The footer is hidden while every section is off.",
+      "settings.size": "Size",
+      "settings.fontSize": "Font size",
+      "settings.fontSize.description": "Text size of the footer.",
+      "settings.height": "Height",
+      "settings.height.description": "Height of the footer bar.",
     },
     zh: {
       connected: "已连接",
@@ -124,6 +135,11 @@ export default Plugin.define({
       "settings.branch.description": "工作区仓库的当前分支。",
       "settings.preview": "预览",
       "settings.preview.empty": "所有段落关闭后，窗口底部不显示任何内容。",
+      "settings.size": "尺寸",
+      "settings.fontSize": "字体大小",
+      "settings.fontSize.description": "页脚文字的字号。",
+      "settings.height": "高度",
+      "settings.height.description": "页脚栏的高度。",
     },
   },
   setup(ctx) {
@@ -155,6 +171,10 @@ export default Plugin.define({
         ? current.server.data.location.vcs.info({ directory: current.directory })?.branch.current
         : undefined
     }
+    const footerStyle = () => ({
+      height: `${display.value.height}px`,
+      "font-size": `${display.value.fontSize}px`,
+    })
 
     ctx.add(Style, STYLE)
     ctx.add(SettingsPage, {
@@ -168,6 +188,8 @@ export default Plugin.define({
           { id: "server", title: ctx.t("settings.server"), description: ctx.t("settings.server.description") },
           { id: "path", title: ctx.t("settings.path"), description: ctx.t("settings.path.description") },
           { id: "branch", title: ctx.t("settings.branch"), description: ctx.t("settings.branch.description") },
+          { id: "font-size", title: ctx.t("settings.fontSize"), description: ctx.t("settings.fontSize.description") },
+          { id: "height", title: ctx.t("settings.height"), description: ctx.t("settings.height.description") },
         ]
       },
       render: () => <FooterSettings />,
@@ -178,7 +200,7 @@ export default Plugin.define({
       render: () => (
         <Show when={session()}>
           <Show when={display.value.server || display.value.path || display.value.branch}>
-            <div class="opencode-footer">
+            <div class="opencode-footer" style={footerStyle()}>
               <FooterContent
                 connected={server()?.connected ?? false}
                 name={server()?.name ?? "opencode"}
@@ -249,7 +271,7 @@ export default Plugin.define({
               when={!empty()}
               fallback={<span class="opencode-footer-preview__empty">{ctx.t("settings.preview.empty")}</span>}
             >
-              <div class="opencode-footer">
+              <div class="opencode-footer" style={footerStyle()}>
                 <FooterContent connected name="Local" path="~/repos/my-app" branch="main" />
               </div>
             </Show>
@@ -304,6 +326,38 @@ export default Plugin.define({
                 onChange={(checked) =>
                   display.update((draft) => {
                     draft.branch = checked
+                  })
+                }
+              />
+            </ui.SettingsRow>
+          </ui.SettingsSection>
+          <ui.SettingsSection title={ctx.t("settings.size")}>
+            <ui.SettingsRow
+              id="font-size"
+              title={ctx.t("settings.fontSize")}
+              description={ctx.t("settings.fontSize.description")}
+            >
+              <ui.Select
+                label={ctx.t("settings.fontSize")}
+                options={FONT_SIZES.map((size) => ({ value: String(size), label: `${size} px` }))}
+                value={String(display.value.fontSize)}
+                placeholder={`${display.value.fontSize} px`}
+                onChange={(value) =>
+                  display.update((draft) => {
+                    draft.fontSize = Number(value)
+                  })
+                }
+              />
+            </ui.SettingsRow>
+            <ui.SettingsRow id="height" title={ctx.t("settings.height")} description={ctx.t("settings.height.description")}>
+              <ui.Select
+                label={ctx.t("settings.height")}
+                options={HEIGHTS.map((height) => ({ value: String(height), label: `${height} px` }))}
+                value={String(display.value.height)}
+                placeholder={`${display.value.height} px`}
+                onChange={(value) =>
+                  display.update((draft) => {
+                    draft.height = Number(value)
                   })
                 }
               />
