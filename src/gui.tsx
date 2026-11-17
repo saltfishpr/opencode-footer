@@ -61,8 +61,15 @@ const STYLE = `
   .opencode-footer-preview {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-top: 12px;
+    gap: 16px;
+  }
+  .opencode-footer-preview__title {
+    margin: 0;
+    padding: 0;
+    font-size: 13px;
+    font-weight: 530;
+    line-height: var(--line-height-compact);
+    color: var(--v2-text-text-base);
   }
   .opencode-footer-preview__surface {
     padding: 8px 12px;
@@ -100,6 +107,7 @@ export default Plugin.define({
       "settings.path.description": "The session's workspace directory, folded to ~ under your home directory.",
       "settings.branch": "Git branch",
       "settings.branch.description": "The current branch of the workspace repository.",
+      "settings.preview": "Preview",
       "settings.preview.empty": "The footer is hidden while every section is off.",
     },
     zh: {
@@ -114,6 +122,7 @@ export default Plugin.define({
       "settings.path.description": "会话的工作区目录，位于用户目录下时折叠为 ~。",
       "settings.branch": "Git 分支",
       "settings.branch.description": "工作区仓库的当前分支。",
+      "settings.preview": "预览",
       "settings.preview.empty": "所有段落关闭后，窗口底部不显示任何内容。",
     },
   },
@@ -234,6 +243,7 @@ export default Plugin.define({
 
       return (
         <div class="opencode-footer-preview">
+          <h3 class="opencode-footer-preview__title">{ctx.t("settings.preview")}</h3>
           <div class="opencode-footer-preview__surface">
             <Show
               when={!empty()}
@@ -252,7 +262,8 @@ export default Plugin.define({
       const ui = ctx.ui
       return (
         <ui.SettingsLayout title={ctx.t("settings.title")} description={ctx.t("settings.description")}>
-          <ui.SettingsSection title={ctx.t("settings.section")} footer={<FooterPreview />}>
+          <FooterPreview />
+          <ui.SettingsSection title={ctx.t("settings.section")}>
             <ui.SettingsRow
               id="server"
               title={ctx.t("settings.server")}
